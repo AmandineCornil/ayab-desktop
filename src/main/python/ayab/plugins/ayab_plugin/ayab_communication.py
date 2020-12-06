@@ -52,10 +52,15 @@ class AyabCommunication(object):
       self.__portname = pPortname
       try:
           self.__ser = serial.Serial(self.__portname, 115200, timeout=0.1)
+          self.__logger.info("Opened serial port " + self.__portname)
+
       except:
         self.__logger.error("could not open serial port " + self.__portname)
         raise CommunicationException()
       return True
+
+  def get_serial(self):
+    return self.__ser
 
   def close_serial(self):
     """Closes serial port."""
@@ -70,7 +75,7 @@ class AyabCommunication(object):
 
   def update(self):
     """Reads data from serial and tries to parse as SLIP packet."""
-    if self.__ser:    
+    if self.__ser: 
       data = self.__ser.read(1000)
       if len(data) > 0:
         self.__rxMsgList.extend(self.__driver.receive(data))
@@ -95,9 +100,22 @@ class AyabCommunication(object):
       data = self.__driver.send(b'\x03')
       self.__ser.write(data)
 
+  def req_status(self):
+      """Sends a request for information to controller."""
+      data = self.__driver.send(b'\x05')
+      self.__ser.write(data)
+
   def req_test(self):
       """"""
       data = self.__driver.send(b'\x04')
+      self.__ser.write(data)
+
+  def req_i2c_write(self, address, command, value):
+      data = self.__driver.send(bytes([0x10, address, command, value]))
+      self.__ser.write(data)
+
+  def req_i2c_read(self, address, command):
+      data = self.__driver.send(bytes([0x20, address, command]))
       self.__ser.write(data)
 
   def cnf_line(self, lineNumber, lineData, flags, crc8):

@@ -23,6 +23,7 @@ import math
 import logging
 import os
 import sys
+import time
 from ayab.plugins.knitting_plugin import KnittingPlugin
 from PyQt5 import QtGui, QtWidgets, QtCore
 from enum import Enum
@@ -215,10 +216,10 @@ class AyabPluginControl(KnittingPlugin):
     self.setup_behaviour_ui()
 
     # Disable "continuous reporting" checkbox and Status tab for now
-    parent_ui.findChild(QtWidgets.QCheckBox, 
-                        "checkBox_ContinuousReporting").setVisible(False)
-    parent_ui.findChild(QtWidgets.QTabWidget, 
-                        "tabWidget").removeTab(1)
+    #parent_ui.findChild(QtWidgets.QCheckBox, 
+    #                    "checkBox_ContinuousReporting").setVisible(False)
+    #parent_ui.findChild(QtWidgets.QTabWidget, 
+    #                    "tabWidget").removeTab(1)
 
   def set_translator(self):
     dirname = os.path.dirname(__file__)
@@ -427,6 +428,57 @@ class AyabPluginControl(KnittingPlugin):
                 carriage_type = "G Carriage"
 
             carriage_position = int(msg[7])
+
+            if msg[8] == 1:
+                direction = "Left"
+            elif msg[8] == 2:
+                direction = "Right"
+            else:
+                direction = "Unknown"
+
+            if msg[9] == 1:
+                hallactive = "Left"
+            elif msg[9] == 2:
+                hallactive = "Right"
+            else:
+                hallactive = "Unknown"
+
+            if msg[10] == 1:
+                beltshift = "Regular"
+            elif msg[10] == 2:
+                beltshift = "Shifted"
+            elif msg[10] == 3:
+                beltshift = "Lace Regular"
+            elif msg[10] == 4:
+                beltshift = "Lace Shifted"
+            else:
+                beltshift = "Unknown"
+
+            startNeedle = msg[11]
+            stopNeedle = msg[12]
+            solenoid8_15 = msg[13]
+            solenoid0_7 = msg[14]
+
+            print("Carriage (%s), Hall (%3d%c , %3d%c), Belt:%-12s" %
+                (
+                    carriage_type,
+                    hall_l,
+                    '*' if hallactive == "Left" else ' ',
+                    hall_r,
+                    '*' if hallactive == "Right" else ' ',
+                    beltshift
+                )
+            )
+            print("Position:%3d (%-7s), Start-StopNeedle:%03d-%03d, Solenoids:%s %s" % 
+                (
+                    carriage_position,
+                    direction,
+                    startNeedle,
+                    stopNeedle,
+                    bin(256+solenoid0_7)[3:],
+                    bin(256+solenoid8_15)[3:],
+                )
+            )
 
             self.__emit_status(hall_l, hall_r,
                                carriage_type, carriage_position)   
@@ -753,6 +805,9 @@ class AyabPluginControl(KnittingPlugin):
       if not self.__ayabCom.open_serial(pOptions["portname"]):
           self.__logger.error("Could not open serial port")
           return
+
+      # Wait for Arduino restart (serial open assert DTR and reset Arduino)
+      time.sleep(1)
 
       self._knitImage = True
       while self._knitImage:
